@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>아두이노 조이스틱 벽돌깨기 (태블릿 무선 블루투스 BLE 버전)</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Noto+Sans+KR:wght@400;600&display=swap');
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background-color: #070811;
+      color: #e0e6ed;
+      font-family: 'Noto Sans KR', sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      touch-action: manipulation;
+    }
+
+    .app-container {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      width: 100%;
+    }
+
+    /* -------------------------------------------------------------
+     * 1. 상단 무선 블루투스(BLE) 제어 헤더 바
+     * ------------------------------------------------------------- */
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 20px;
+      background: linear-gradient(180deg, #12162a 0%, #0c0e1a 100%);
+      border-bottom: 1px solid #1f2746;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+      flex-shrink: 0;
+      z-index: 10;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .game-logo {
+      font-family: 'Orbitron', monospace;
+      font-size: 1.1rem;
+      font-weight: 900;
+      color: #00f0ff;
+      text-shadow: 0 0 10px rgba(0, 240, 255, 0.6);
+      white-space: nowrap;
+    }
+
+    .badge {
+      background: #182240;
+      color: #00ffcc;
+      font-size: 0.72rem;
+      font-family: monospace;
+      padding: 3px 8px;
+      border-radius: 12px;
+      border: 1px solid #00ffcc55;
+    }
+
+    .bt-control {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .cyber-btn {
+      background: linear-gradient(135deg, #0084ff 0%, #00f0ff 100%);
+      color: #030812;
+      border: none;
+      padding: 9px 20px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 0 14px rgba(0, 240, 255, 0.4);
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+
+    .cyber-btn:hover, .cyber-btn:active {
+      filter: brightness(1.15);
+      box-shadow: 0 0 22px rgba(0, 240, 255, 0.75);
+    }
+
+    .cyber-btn.danger {
+      background: linear-gradient(135deg, #ff0055 0%, #a80038 100%);
+      color: #ffffff;
+      box-shadow: 0 0 14px rgba(255, 0, 85, 0.4);
+    }
+
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+
+    .led {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .led.connected {
+      background-color: #00ff66;
+      box-shadow: 0 0 10px #00ff66;
+      animation: pulse 1.5s infinite;
+    }
+
+    .led.disconnected {
+      background-color: #ff334b;
+      box-shadow: 0 0 8px #ff334b;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 0.6; }
+      50% { opacity: 1; }
+      100% { opacity: 0.6; }
+    }
+
+    .packet-counter {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      background: #090c16;
+      padding: 3px 8px;
+      border-radius: 6px;
+      border: 1px solid #1a233a;
+      font-family: monospace;
+      font-size: 0.76rem;
+      color: #798cb3;
+    }
+
+    .pulse-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background-color: #334155;
+    }
+
+    .pulse-dot.blink {
+      background-color: #00ff66;
+      box-shadow: 0 0 8px #00ff66;
+    }
+
+    .sensor-monitor {
+      display: flex;
+      gap: 8px;
+      background: #080b14;
+      padding: 4px 10px;
+      border-radius: 8px;
+      border: 1px solid #1a2238;
+      font-family: monospace;
+      font-size: 0.78rem;
+    }
+
+    .sensor-monitor .val {
+      color: #00ffcc;
+      font-weight: bold;
+    }
+
+    .shield-buttons-monitor {
+      display: flex;
+      gap: 5px;
+    }
+
+    .btn-chip {
+      background: #101526;
+      border: 1px solid #232d4b;
+      color: #6a7c9f;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 0.72rem;
+      font-weight: bold;
+      font-family: monospace;
+    }
+
+    .btn-chip.active {
+      background: #ff0055;
+      color: #ffffff;
+      border-color: #ff5588;
+      box-shadow: 0 0 10px #ff0055;
+    }
+
+    /* -------------------------------------------------------------
+     * 통신 진단 디버그 바
+     * ------------------------------------------------------------- */
+    .debug-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 20px;
+      background: #06070e;
+      border-bottom: 1px solid #151a2d;
+      font-family: monospace;
+      font-size: 0.76rem;
+      gap: 10px;
+    }
+
+    .debug-val {
+      color: #ffd700;
+      background: #0b0e1b;
+      padding: 2px 10px;
+      border-radius: 4px;
+      border: 1px solid #202844;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+    }
+
+    .trouble-banner {
+      background: #2b1d06;
+      border-bottom: 1px solid #ffaa00;
+      color: #ffdd88;
+      padding: 8px 20px;
+      font-size: 0.82rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .trouble-banner strong {
+      color: #00f0ff;
+    }
+
+    .trouble-btn {
+      background: #ffaa00;
+      color: #111;
+      border: none;
+      padding: 4px 12px;
+      border-radius: 4px;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 0.78rem;
+    }
+
+    /* -------------------------------------------------------------
+     * 2. 게임 메인 영역 및 Canvas
+     * ------------------------------------------------------------- */
+    .game-main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 8px;
+      gap: 6px;
+    }
+
+    .game-hud {
+      display: flex;
+      justify-content: space-around;
+      width: 100%;
+      max-width: 800px;
+      background: rgba(13, 17, 33, 0.85);
+      padding: 8px 20px;
+      border-radius: 12px 12px 0 0;
+      border: 1px solid #1f2746;
+      border-bottom: none;
+    }
+
+    .hud-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .hud-label {
+      font-family: 'Orbitron', monospace;
+      font-size: 0.65rem;
+      letter-spacing: 1.5px;
+      color: #6a7b9e;
+    }
+
+    .hud-value {
+      font-family: 'Orbitron', monospace;
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+    }
+
+    .neon-cyan { color: #00f0ff; text-shadow: 0 0 8px rgba(0, 240, 255, 0.5); }
+    .neon-gold { color: #ffd700; text-shadow: 0 0 8px rgba(255, 215, 0, 0.5); }
+    .neon-pink { color: #ff007f; text-shadow: 0 0 8px rgba(255, 0, 127, 0.5); }
+
+    .canvas-wrapper {
+      position: relative;
+      width: 100%;
+      max-width: 800px;
+      aspect-ratio: 800 / 540;
+      border-radius: 0 0 12px 12px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 240, 255, 0.15);
+      border: 1px solid #1f2a4a;
+    }
+
+    #gameCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background-color: #05060b;
+    }
+
+    .touch-controls {
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
+      max-width: 800px;
+      gap: 12px;
+      margin-top: 4px;
+    }
+
+    .touch-btn {
+      flex: 1;
+      padding: 12px;
+      background: #11172a;
+      border: 1px solid #28375e;
+      border-radius: 8px;
+      color: #8da4ce;
+      font-weight: bold;
+      font-size: 0.9rem;
+      text-align: center;
+      touch-action: manipulation;
+    }
+
+    .touch-btn:active {
+      background: #00f0ff22;
+      border-color: #00f0ff;
+      color: #00f0ff;
+    }
+
+    .touch-btn.launch {
+      background: #2a1122;
+      border-color: #5e284a;
+      color: #ff55aa;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <!-- 상단 무선 블루투스(BLE) 연결 바 -->
+    <header class="top-bar">
+      <div class="brand">
+        <span class="game-logo">📱 BLE BREAKOUT</span>
+        <span class="badge">HM-10 / AT-09 전용</span>
+      </div>
+
+      <!-- 블루투스 제어 버튼 및 상태 -->
+      <div class="bt-control">
+        <button id="connectBtBtn" class="cyber-btn" type="button">📱 블루투스 아두이노 연결</button>
+        
+        <div class="status-indicator">
+          <span id="statusLed" class="led disconnected"></span>
+          <span id="statusText">무선 대기 중</span>
+        </div>
+
+        <div class="packet-counter" title="수신 패킷 수">
+          <span class="pulse-dot" id="rxPulse"></span>
+          <span>RX: <strong id="packetCount">0</strong></span>
+        </div>
+      </div>
+
+      <!-- 센서 모니터 (A0, A1) -->
+      <div class="sensor-monitor">
+        <div>X: <span id="valX" class="val">512</span></div>
+        <div>Y: <span id="valY" class="val">512</span></div>
+      </div>
+
+      <!-- 실드 4개 버튼 모니터 -->
+      <div class="shield-buttons-monitor">
+        <span class="btn-chip" id="chipD2">D2(발사)</span>
+        <span class="btn-chip" id="chipD4">D4(재시작)</span>
+        <span class="btn-chip" id="chipD5">D5(좌)</span>
+        <span class="btn-chip" id="chipD3">D3(우)</span>
+      </div>
+    </header>
+
+    <!-- 실시간 수신 데이터(RAW) 디버그 바 -->
+    <div class="debug-bar">
+      <span style="color:#798aa8; flex-shrink:0;">무선 수신(RAW):</span>
+      <span id="rawText" class="debug-val">버튼을 눌러 주변의 블루투스(HM-10/AT-09/BT05)를 검색해 주세요.</span>
+      <label style="color:#9cb1d4; flex-shrink:0; cursor:pointer;">
+        <input type="checkbox" id="invertX"> 좌우 반전
+      </label>
+    </div>
+
+    <!-- 문제 해결 배너 -->
+    <div class="trouble-banner">
+      <span>💡 <strong>버튼 클릭 시 블루투스 창이 안 뜨나요?</strong> 태블릿 상단바에서 [블루투스]와 [위치(GPS)]가 켜져 있는지 확인해 주세요!</span>
+      <button class="trouble-btn" type="button" onclick="showHelpModal()">🔍 해결 가이드</button>
+    </div>
+
+    <!-- 메인 게임 영역 -->
+    <main class="game-main">
+      <div class="game-hud">
+        <div class="hud-box">
+          <span class="hud-label">SCORE</span>
+          <span id="scoreDisplay" class="hud-value neon-cyan">00000</span>
+        </div>
+        <div class="hud-box">
+          <span class="hud-label">HIGH SCORE</span>
+          <span id="highScoreDisplay" class="hud-value neon-gold">00000</span>
+        </div>
+        <div class="hud-box">
+          <span class="hud-label">STAGE</span>
+          <span id="stageDisplay" class="hud-value neon-pink">STAGE 1</span>
+        </div>
+        <div class="hud-box">
+          <span class="hud-label">LIVES</span>
+          <div id="livesDisplay" style="font-size:1.1rem;">
+            <span class="heart">❤️</span>
+            <span class="heart">❤️</span>
+            <span class="heart">❤️</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="canvas-wrapper">
+        <canvas id="gameCanvas" width="800" height="540"></canvas>
+      </div>
+
+      <!-- 태블릿 터치 보조 컨트롤 -->
+      <div class="touch-controls">
+        <button class="touch-btn" id="touchLeft" type="button">◀ 왼쪽으로</button>
+        <button class="touch-btn launch" id="touchAction" type="button">⚡ 공 발사 / 재시작</button>
+        <button class="touch-btn" id="touchRight" type="button">오른쪽으로 ▶</button>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    /**
+     * =====================================================================
+     * 1. 안전한 Web Bluetooth API (GATT 블록리스트 제거 & 스마트 탐색)
+     * =====================================================================
+     */
+    // 안전한 BLE UART 서비스 UUID 목록 (0x1800, 0x1801 등 블록리스트 제외)
+    const CANDIDATE_SERVICES = [
+      "0000ffe0-0000-1000-8000-00805f9b34fb", // HM-10, AT-09, BT05 표준 FFE0
+      "6e400001-b5a3-f393-e0a9-e50e24dcca9e", // Nordic UART
+      "0000dfb0-0000-1000-8000-00805f9b34fb", // Bluno
+      "49535343-fe7d-4ae5-8fa9-9fafd205e455", // ISSC
+      "0000fff0-0000-1000-8000-00805f9b34fb"  // FFF0
+    ];
+
+    let bluetoothDevice = null;
+    let bleCharacteristic = null;
+    let isBleConnected = false;
+    let rxBuffer = '';
+    let totalRxCount = 0;
+
+    const connectBtBtn = document.getElementById('connectBtBtn');
+    const statusLed = document.getElementById('statusLed');
+    const statusText = document.getElementById('statusText');
+    const packetCountEl = document.getElementById('packetCount');
+    const rxPulse = document.getElementById('rxPulse');
+    const rawTextEl = document.getElementById('rawText');
+    const valXEl = document.getElementById('valX');
+    const valYEl = document.getElementById('valY');
+    const chipD2 = document.getElementById('chipD2');
+    const chipD3 = document.getElementById('chipD3');
+    const chipD4 = document.getElementById('chipD4');
+    const chipD5 = document.getElementById('chipD5');
+    const invertXCheckbox = document.getElementById('invertX');
+
+    /**
+     * 블루투스 연결 함수
+     */
+    async function connectBluetooth() {
+      // 1. 브라우저 지원 여부 및 보안 컨텍스트 점검
+      if (!navigator.bluetooth) {
+        alert(
+          "⚠️ 현재 브라우저/주소에서는 Web Bluetooth를 실행할 수 없습니다.\n\n" +
+          "[필수 점검 2가지]\n" +
+          "1. 태블릿 주소가 'https://' 또는 'localhost'인가요?\n" +
+          "   (크롬은 보안상 일반 http:// 에서는 블루투스를 막아둡니다)\n" +
+          "2. 아이패드는 Safari 대신 앱스토어 무료 앱 'Bluefy'를 사용해야 합니다.\n" +
+          "3. 안드로이드 태블릿은 Google Chrome을 사용해 주세요."
+        );
+        return;
+      }
+
+      try {
+        statusText.textContent = "장치 검색 중...";
+        rawTextEl.textContent = "태블릿 검색 팝업에서 아두이노 블루투스(BT05/HMSoft 등)를 선택해 주세요...";
+
+        // 2. 주변 BLE 장치 검색 팝업 호출
+        bluetoothDevice = await navigator.bluetooth.requestDevice({
+          acceptAllDevices: true,
+          optionalServices: CANDIDATE_SERVICES
+        });
+
+        bluetoothDevice.addEventListener('gattserverdisconnected', onDisconnected);
+
+        statusText.textContent = "GATT 서버 연결 중...";
+        rawTextEl.textContent = `[${bluetoothDevice.name || '장치'}]와 연결 중...`;
+        
+        const server = await bluetoothDevice.gatt.connect();
+
+        statusText.textContent = "통신 채널 자동 탐색 중...";
+        bleCharacteristic = null;
+
+        // 3. 서비스 목록 탐색
+        const services = await server.getPrimaryServices();
+
+        for (let s of services) {
+          try {
+            const characteristics = await s.getCharacteristics();
+            for (let c of characteristics) {
+              if (c.properties.notify || c.properties.indicate) {
+                bleCharacteristic = c;
+                console.log("통신 특성 발견:", c.uuid, "서비스:", s.uuid);
+                break;
+              }
+            }
+            if (bleCharacteristic) break;
+          } catch (e) {}
+        }
+
+        if (!bleCharacteristic) {
+          throw new Error("블루투스 모듈에서 수신 채널(Notify)을 찾지 못했습니다.");
+        }
+
+        // 4. 알림 구독 시작
+        await bleCharacteristic.startNotifications();
+        bleCharacteristic.addEventListener('characteristicvaluechanged', handleBleData);
+
+        isBleConnected = true;
+        totalRxCount = 0;
+        setConnectedUI(true, bluetoothDevice.name || "아두이노 BLE");
+        rawTextEl.textContent = "블루투스 연결 성공! 데이터를 기다리는 중...";
+
+      } catch (err) {
+        console.error("블루투스 오류 발생:", err);
+        setConnectedUI(false);
+
+        if (err.name === 'NotFoundError') {
+          rawTextEl.textContent = "사용자가 장치 선택을 취소했습니다.";
+        } else {
+          alert(`블루투스 연결 에러:\n[${err.name}] ${err.message}\n\n태블릿 상단바에서 블루투스와 위치(GPS)가 켜져 있는지 확인해 주세요!`);
+          rawTextEl.textContent = `오류: ${err.message}`;
+        }
+      }
+    }
+
+    /**
+     * BLE 수신 데이터 핸들러
+     */
+    function handleBleData(event) {
+      const value = event.target.value;
+      const decoder = new TextDecoder('utf-8');
+      const textChunk = decoder.decode(value);
+
+      rxBuffer += textChunk;
+
+      const lines = rxBuffer.split('\n');
+      rxBuffer = lines.pop(); // 미완성 패킷 보존
+
+      for (const line of lines) {
+        parseAndApplyLine(line.trim());
+      }
+    }
+
+    function parseAndApplyLine(line) {
+      if (!line) return;
+
+      rawTextEl.textContent = line;
+      totalRxCount++;
+      packetCountEl.textContent = totalRxCount;
+      rxPulse.classList.add('blink');
+      setTimeout(() => rxPulse.classList.remove('blink'), 50);
+
+      const parts = line.split(',');
+      if (parts.length < 4) return;
+
+      const joyX = parseInt(parts[0], 10);
+      const joyY = parseInt(parts[1], 10);
+
+      if (isNaN(joyX) || isNaN(joyY)) return;
+
+      valXEl.textContent = joyX;
+      valYEl.textContent = joyY;
+
+      let d2 = 1, d3 = 1, d4 = 1, d5 = 1, d8 = 1;
+
+      if (parts.length >= 9) {
+        d2 = parseInt(parts[2], 10);
+        d3 = parseInt(parts[3], 10);
+        d4 = parseInt(parts[4], 10);
+        d5 = parseInt(parts[5], 10);
+        d8 = parseInt(parts[8], 10);
+      } else {
+        d2 = parseInt(parts[2], 10);
+        d4 = parseInt(parts[3], 10);
+      }
+
+      updateChip(chipD2, d2);
+      updateChip(chipD3, d3);
+      updateChip(chipD4, d4);
+      updateChip(chipD5, d5);
+
+      game.updateArduinoInput({
+        joyX: joyX,
+        joyY: joyY,
+        d2: d2,
+        d3: d3,
+        d4: d4,
+        d5: d5,
+        d8: d8
+      });
+    }
+
+    function updateChip(el, state) {
+      if (!el) return;
+      if (state === 0) el.classList.add('active');
+      else el.classList.remove('active');
+    }
+
+    function onDisconnected() {
+      setConnectedUI(false);
+      rawTextEl.textContent = "블루투스 연결이 끊어졌습니다.";
+    }
+
+    function disconnectBluetooth() {
+      if (bluetoothDevice && bluetoothDevice.gatt.connected) {
+        bluetoothDevice.gatt.disconnect();
+      }
+      setConnectedUI(false);
+    }
+
+    function setConnectedUI(connected, deviceName = "") {
+      isBleConnected = connected;
+      if (connected) {
+        statusLed.className = "led connected";
+        statusText.textContent = `${deviceName} 연결됨`;
+        statusText.style.color = "#00ff66";
+        connectBtBtn.textContent = "❌ 연결 해제하기";
+        connectBtBtn.className = "cyber-btn danger";
+      } else {
+        statusLed.className = "led disconnected";
+        statusText.textContent = "무선 대기 중";
+        statusText.style.color = "#8c9cb8";
+        connectBtBtn.textContent = "📱 블루투스 아두이노 연결";
+        connectBtBtn.className = "cyber-btn";
+      }
+    }
+
+    // 버튼 클릭 이벤트 (터치와 클릭 모두 완벽 바인딩)
+    connectBtBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (!isBleConnected) {
+        connectBluetooth();
+      } else {
+        disconnectBluetooth();
+      }
+    });
+
+    function showHelpModal() {
+      alert(
+        "🔍 [블루투스 버튼 반응이 없을 때 체크리스트]\n\n" +
+        "1. 태블릿 상단바에서 [블루투스]와 [위치(GPS)]가 켜져 있나요?\n" +
+        "   (안드로이드 보안상 위치 권한이 켜져 있어야 BLE 장치가 검색됩니다)\n\n" +
+        "2. 접속 주소가 'https://' 인가요?\n" +
+        "   (크롬 브라우저는 보안상 https:// 웹사이트에서만 블루투스를 허용합니다)\n\n" +
+        "3. 아이패드는 애플 Safari 대신 무료 앱 'Bluefy'를 사용해야 합니다."
+      );
+    }
+    window.showHelpModal = showHelpModal;
+
+    /**
+     * =====================================================================
+     * 2. 벽돌깨기 게임 엔진 (Canvas 2D)
+     * =====================================================================
+     */
+    class BreakoutGame {
+      constructor(canvasId) {
+        this.canvas = document.getElementById(canvasId);
+        this.ctx = this.canvas.getContext('2d');
+        this.width = this.canvas.width;
+        this.height = this.canvas.height;
+
+        this.STATE = { READY: 'READY', PLAYING: 'PLAYING', GAMEOVER: 'GAMEOVER', CLEAR: 'CLEAR' };
+        this.currentState = this.STATE.READY;
+
+        this.score = 0;
+        this.highScore = parseInt(localStorage.getItem('ble_breakout_high') || '0', 10);
+        this.lives = 3;
+        this.stage = 1;
+
+        this.paddle = { width: 124, height: 16, x: (this.width - 124) / 2, y: this.height - 35, speed: 8.5 };
+        this.ball = { radius: 7, x: this.width / 2, y: this.paddle.y - 10, baseSpeed: 6.5, vx: 0, vy: 0, trail: [] };
+        
+        this.brickConfig = { rows: 5, cols: 9, width: 74, height: 22, padding: 10, offsetTop: 55, offsetLeft: 26 };
+        this.bricks = [];
+        this.particles = [];
+
+        this.input = { joyX: 512, joyY: 512, prevD2: 1, prevD4: 1, touchLeft: false, touchRight: false };
+        this.invertX = false;
+        this.JOYSTICK_CENTER = 512;
+        this.JOYSTICK_DEADZONE = 50;
+
+        this.initBricks();
+        this.setupKeyboardListeners();
+        this.updateHUD();
+
+        requestAnimationFrame(this.gameLoop.bind(this));
+      }
+
+      initBricks() {
+        this.bricks = [];
+        const colors = ['#ff0055', '#ff7700', '#ffd700', '#00ff66', '#00f0ff'];
+        for (let r = 0; r < this.brickConfig.rows; r++) {
+          this.bricks[r] = [];
+          for (let c = 0; c < this.brickConfig.cols; c++) {
+            this.bricks[r][c] = {
+              x: c * (this.brickConfig.width + this.brickConfig.padding) + this.brickConfig.offsetLeft,
+              y: r * (this.brickConfig.height + this.brickConfig.padding) + this.brickConfig.offsetTop,
+              status: 1,
+              color: colors[r % colors.length],
+              score: (this.brickConfig.rows - r) * 10
+            };
+          }
+        }
+      }
+
+      setupKeyboardListeners() {
+        window.addEventListener('keydown', (e) => {
+          if (e.code === 'ArrowLeft' || e.code === 'KeyA') this.input.touchLeft = true;
+          if (e.code === 'ArrowRight' || e.code === 'KeyD') this.input.touchRight = true;
+          if (e.code === 'Space') { e.preventDefault(); this.triggerLaunch(); }
+          if (e.code === 'KeyR') this.triggerRestart();
+        });
+        window.addEventListener('keyup', (e) => {
+          if (e.code === 'ArrowLeft' || e.code === 'KeyA') this.input.touchLeft = false;
+          if (e.code === 'ArrowRight' || e.code === 'KeyD') this.input.touchRight = false;
+        });
+      }
+
+      updateArduinoInput(data) {
+        this.input.joyX = data.joyX;
+        this.input.joyY = data.joyY;
+
+        if (this.input.prevD2 === 1 && data.d2 === 0) this.triggerLaunch();
+        this.input.prevD2 = data.d2;
+
+        if (this.input.prevD4 === 1 && data.d4 === 0) this.triggerRestart();
+        this.input.prevD4 = data.d4;
+
+        if (data.d8 === 0) {
+          if (this.currentState === this.STATE.READY) this.triggerLaunch();
+          else if (this.currentState === this.STATE.GAMEOVER || this.currentState === this.STATE.CLEAR) this.triggerRestart();
+        }
+      }
+
+      triggerLaunch() {
+        if (this.currentState === this.STATE.READY) {
+          this.currentState = this.STATE.PLAYING;
+          const angle = (Math.random() * 0.6 - 0.3) * Math.PI;
+          this.ball.vx = this.ball.baseSpeed * Math.sin(angle);
+          this.ball.vy = -this.ball.baseSpeed * Math.cos(angle);
+        }
+      }
+
+      triggerRestart() {
+        if (this.currentState === this.STATE.GAMEOVER || this.currentState === this.STATE.CLEAR) {
+          if (this.currentState === this.STATE.GAMEOVER) { this.score = 0; this.lives = 3; this.stage = 1; }
+          else if (this.currentState === this.STATE.CLEAR) { this.stage += 1; this.ball.baseSpeed += 0.5; }
+          this.resetRound();
+          this.initBricks();
+          this.updateHUD();
+        }
+      }
+
+      resetRound() {
+        this.currentState = this.STATE.READY;
+        this.paddle.x = (this.width - this.paddle.width) / 2;
+        this.ball.x = this.paddle.x + this.paddle.width / 2;
+        this.ball.y = this.paddle.y - this.ball.radius - 2;
+        this.ball.vx = 0;
+        this.ball.vy = 0;
+        this.ball.trail = [];
+      }
+
+      updateHUD() {
+        document.getElementById('scoreDisplay').textContent = String(this.score).padStart(5, '0');
+        document.getElementById('highScoreDisplay').textContent = String(this.highScore).padStart(5, '0');
+        document.getElementById('stageDisplay').textContent = `STAGE ${this.stage}`;
+        const livesEl = document.getElementById('livesDisplay');
+        let hearts = '';
+        for (let i = 0; i < this.lives; i++) hearts += '❤️';
+        livesEl.innerHTML = hearts || '<span style="color:#666">NONE</span>';
+      }
+
+      update() {
+        let moveForce = 0;
+        let joyDelta = this.input.joyX - this.JOYSTICK_CENTER;
+        if (this.invertX) joyDelta = -joyDelta;
+
+        if (Math.abs(joyDelta) > this.JOYSTICK_DEADZONE) {
+          const sign = Math.sign(joyDelta);
+          const delta = Math.abs(joyDelta) - this.JOYSTICK_DEADZONE;
+          moveForce = sign * Math.min(delta / (512 - this.JOYSTICK_DEADZONE), 1.0);
+        }
+
+        if (this.input.touchLeft) moveForce = -1.0;
+        if (this.input.touchRight) moveForce = 1.0;
+
+        this.paddle.x += moveForce * this.paddle.speed;
+        if (this.paddle.x < 0) this.paddle.x = 0;
+        if (this.paddle.x + this.paddle.width > this.width) this.paddle.x = this.width - this.paddle.width;
+
+        if (this.currentState === this.STATE.READY) {
+          this.ball.x = this.paddle.x + this.paddle.width / 2;
+          this.ball.y = this.paddle.y - this.ball.radius - 2;
+        } else if (this.currentState === this.STATE.PLAYING) {
+          this.ball.trail.unshift({ x: this.ball.x, y: this.ball.y });
+          if (this.ball.trail.length > 5) this.ball.trail.pop();
+
+          this.ball.x += this.ball.vx;
+          this.ball.y += this.ball.vy;
+
+          if (this.ball.x - this.ball.radius <= 0) { this.ball.x = this.ball.radius; this.ball.vx = -this.ball.vx; }
+          else if (this.ball.x + this.ball.radius >= this.width) { this.ball.x = this.width - this.ball.radius; this.ball.vx = -this.ball.vx; }
+
+          if (this.ball.y - this.ball.radius <= 0) { this.ball.y = this.ball.radius; this.ball.vy = -this.ball.vy; }
+
+          if (this.ball.y + this.ball.radius >= this.paddle.y &&
+              this.ball.y - this.ball.radius <= this.paddle.y + this.paddle.height &&
+              this.ball.x >= this.paddle.x && this.ball.x <= this.paddle.x + this.paddle.width && this.ball.vy > 0) {
+            const hit = (this.ball.x - (this.paddle.x + this.paddle.width / 2)) / (this.paddle.width / 2);
+            const angle = hit * (Math.PI / 3);
+            const spd = Math.hypot(this.ball.vx, this.ball.vy);
+            this.ball.vx = spd * Math.sin(angle);
+            this.ball.vy = -spd * Math.cos(angle);
+            this.ball.y = this.paddle.y - this.ball.radius;
+            this.createSparks(this.ball.x, this.paddle.y, '#00f0ff', 6);
+          }
+
+          this.checkBricks();
+
+          if (this.ball.y - this.ball.radius > this.height) {
+            this.lives--;
+            this.updateHUD();
+            if (this.lives <= 0) {
+              this.currentState = this.STATE.GAMEOVER;
+              if (this.score > this.highScore) {
+                this.highScore = this.score;
+                localStorage.setItem('ble_breakout_high', this.highScore);
+                this.updateHUD();
+              }
+            } else {
+              this.resetRound();
+            }
+          }
+        }
+
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+          const p = this.particles[i];
+          p.x += p.vx; p.y += p.vy; p.alpha -= p.decay;
+          if (p.alpha <= 0) this.particles.splice(i, 1);
+        }
+      }
+
+      checkBricks() {
+        let cleared = true;
+        for (let r = 0; r < this.brickConfig.rows; r++) {
+          for (let c = 0; c < this.brickConfig.cols; c++) {
+            const b = this.bricks[r][c];
+            if (b.status === 1) {
+              cleared = false;
+              if (this.ball.x + this.ball.radius >= b.x && this.ball.x - this.ball.radius <= b.x + this.brickConfig.width &&
+                  this.ball.y + this.ball.radius >= b.y && this.ball.y - this.ball.radius <= b.y + this.brickConfig.height) {
+                b.status = 0;
+                this.score += b.score;
+                this.updateHUD();
+                this.createSparks(this.ball.x, this.ball.y, b.color, 12);
+                this.ball.vy = -this.ball.vy;
+                return;
+              }
+            }
+          }
+        }
+        if (cleared) this.currentState = this.STATE.CLEAR;
+      }
+
+      createSparks(x, y, color, count) {
+        for (let i = 0; i < count; i++) {
+          const a = Math.random() * Math.PI * 2;
+          const s = Math.random() * 4 + 1.5;
+          this.particles.push({
+            x: x, y: y, vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+            radius: Math.random() * 2.5 + 1.5, color: color, alpha: 1.0, decay: 0.03
+          });
+        }
+      }
+
+      draw() {
+        this.ctx.fillStyle = '#070813';
+        this.ctx.fillRect(0, 0, this.width, this.height);
+
+        for (let r = 0; r < this.brickConfig.rows; r++) {
+          for (let c = 0; c < this.brickConfig.cols; c++) {
+            const b = this.bricks[r][c];
+            if (b.status === 1) {
+              this.ctx.fillStyle = b.color;
+              this.ctx.fillRect(b.x, b.y, this.brickConfig.width, this.brickConfig.height);
+              this.ctx.strokeStyle = '#ffffff55';
+              this.ctx.strokeRect(b.x, b.y, this.brickConfig.width, this.brickConfig.height);
+            }
+          }
+        }
+
+        this.ctx.fillStyle = '#00f0ff';
+        this.ctx.shadowColor = '#00f0ff';
+        this.ctx.shadowBlur = 10;
+        this.ctx.fillRect(this.paddle.x, this.paddle.y, this.paddle.width, this.paddle.height);
+        this.ctx.shadowBlur = 0;
+
+        for (let i = 0; i < this.ball.trail.length; i++) {
+          const t = this.ball.trail[i];
+          this.ctx.fillStyle = `rgba(0, 240, 255, ${0.4 - i * 0.08})`;
+          this.ctx.beginPath();
+          this.ctx.arc(t.x, t.y, this.ball.radius, 0, Math.PI * 2);
+          this.ctx.fill();
+        }
+
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.beginPath();
+        this.ctx.arc(this.ball.x, this.ball.y, this.ball.radius, 0, Math.PI * 2);
+        this.ctx.fill();
+
+        for (const p of this.particles) {
+          this.ctx.save();
+          this.ctx.globalAlpha = p.alpha;
+          this.ctx.fillStyle = p.color;
+          this.ctx.beginPath();
+          this.ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+          this.ctx.fill();
+          this.ctx.restore();
+        }
+
+        this.ctx.textAlign = 'center';
+        if (this.currentState === this.STATE.READY) {
+          this.ctx.font = 'bold 18px "Orbitron", sans-serif';
+          this.ctx.fillStyle = '#00f0ff';
+          this.ctx.fillText("READY! [D2 버튼] 또는 터치 버튼으로 발사하세요", this.width / 2, this.height / 2 + 50);
+        } else if (this.currentState === this.STATE.GAMEOVER) {
+          this.ctx.font = '900 44px "Orbitron", sans-serif';
+          this.ctx.fillStyle = '#ff0055';
+          this.ctx.fillText("GAME OVER", this.width / 2, this.height / 2 - 20);
+          this.ctx.font = 'bold 18px sans-serif';
+          this.ctx.fillStyle = '#ffffff';
+          this.ctx.fillText("[D4 버튼] 또는 터치 버튼으로 다시 도전하세요", this.width / 2, this.height / 2 + 30);
+        } else if (this.currentState === this.STATE.CLEAR) {
+          this.ctx.font = '900 44px "Orbitron", sans-serif';
+          this.ctx.fillStyle = '#00ff66';
+          this.ctx.fillText("STAGE CLEAR!", this.width / 2, this.height / 2 - 20);
+          this.ctx.font = 'bold 18px sans-serif';
+          this.ctx.fillStyle = '#ffffff';
+          this.ctx.fillText("[D4 버튼]을 눌러 다음 스테이지로 이동", this.width / 2, this.height / 2 + 30);
+        }
+      }
+
+      gameLoop() {
+        this.update();
+        this.draw();
+        requestAnimationFrame(this.gameLoop.bind(this));
+      }
+    }
+
+    const game = new BreakoutGame('gameCanvas');
+
+    if (invertXCheckbox) {
+      invertXCheckbox.addEventListener('change', (e) => {
+        game.invertX = e.target.checked;
+      });
+    }
+
+    const touchLeft = document.getElementById('touchLeft');
+    const touchRight = document.getElementById('touchRight');
+    const touchAction = document.getElementById('touchAction');
+
+    touchLeft.addEventListener('pointerdown', () => { game.input.touchLeft = true; });
+    touchLeft.addEventListener('pointerup', () => { game.input.touchLeft = false; });
+    touchLeft.addEventListener('pointerleave', () => { game.input.touchLeft = false; });
+
+    touchRight.addEventListener('pointerdown', () => { game.input.touchRight = true; });
+    touchRight.addEventListener('pointerup', () => { game.input.touchRight = false; });
+    touchRight.addEventListener('pointerleave', () => { game.input.touchRight = false; });
+
+    touchAction.addEventListener('click', () => {
+      if (game.currentState === game.STATE.READY) game.triggerLaunch();
+      else if (game.currentState === game.STATE.GAMEOVER || game.currentState === game.STATE.CLEAR) game.triggerRestart();
+    });
+  </script>
+</body>
+</html>
