@@ -402,9 +402,14 @@
     <div class="debug-bar">
       <span style="color:#798aa8; flex-shrink:0;">무선 수신(RAW):</span>
       <span id="rawText" class="debug-val">버튼을 눌러 주변의 블루투스(HM-10/AT-09/BT05)를 검색해 주세요.</span>
-      <label style="color:#9cb1d4; flex-shrink:0; cursor:pointer;">
-        <input type="checkbox" id="invertX"> 좌우 반전
-      </label>
+      <div style="display:flex; gap:12px; align-items:center; flex-shrink:0;">
+        <label style="color:#9cb1d4; cursor:pointer;" title="A0(X)와 A1(Y) 축을 서로 교체합니다">
+          <input type="checkbox" id="swapXY"> X↔Y 축 교체
+        </label>
+        <label style="color:#9cb1d4; cursor:pointer;" title="좌우 이동 방향을 반대로 뒤집습니다">
+          <input type="checkbox" id="invertX"> 좌우 반전
+        </label>
+      </div>
     </div>
 
     <!-- 문제 해결 배너 -->
@@ -485,6 +490,7 @@
     const chipD4 = document.getElementById('chipD4');
     const chipD5 = document.getElementById('chipD5');
     const invertXCheckbox = document.getElementById('invertX');
+    const swapXYCheckbox = document.getElementById('swapXY');
 
     /**
      * 블루투스 연결 함수
@@ -717,8 +723,9 @@
         this.bricks = [];
         this.particles = [];
 
-        this.input = { joyX: 512, joyY: 512, prevD2: 1, prevD4: 1, touchLeft: false, touchRight: false };
+        this.input = { joyX: 512, joyY: 512, prevD2: 1, prevD4: 1, d3: 1, d5: 1, touchLeft: false, touchRight: false };
         this.invertX = false;
+        this.swapXY = false;
         this.JOYSTICK_CENTER = 512;
         this.JOYSTICK_DEADZONE = 50;
 
@@ -762,6 +769,8 @@
       updateArduinoInput(data) {
         this.input.joyX = data.joyX;
         this.input.joyY = data.joyY;
+        this.input.d3 = data.d3 !== undefined ? data.d3 : 1;
+        this.input.d5 = data.d5 !== undefined ? data.d5 : 1;
 
         if (this.input.prevD2 === 1 && data.d2 === 0) this.triggerLaunch();
         this.input.prevD2 = data.d2;
@@ -816,7 +825,9 @@
 
       update() {
         let moveForce = 0;
-        let joyDelta = this.input.joyX - this.JOYSTICK_CENTER;
+        // X축/Y축 선택 (실드 장착 방향에 따라 X↔Y 교체 지원)
+        let rawAxis = this.swapXY ? this.input.joyY : this.input.joyX;
+        let joyDelta = rawAxis - this.JOYSTICK_CENTER;
         if (this.invertX) joyDelta = -joyDelta;
 
         if (Math.abs(joyDelta) > this.JOYSTICK_DEADZONE) {
@@ -825,6 +836,11 @@
           moveForce = sign * Math.min(delta / (512 - this.JOYSTICK_DEADZONE), 1.0);
         }
 
+        // 실드 방향 버튼 D5(좌측, 파랑) / D3(우측, 파랑) 직접 조작 지원
+        if (this.input.d5 === 0) moveForce = -1.0;
+        if (this.input.d3 === 0) moveForce = 1.0;
+
+        // 화면 터치 버튼 및 키보드
         if (this.input.touchLeft) moveForce = -1.0;
         if (this.input.touchRight) moveForce = 1.0;
 
@@ -996,6 +1012,12 @@
     if (invertXCheckbox) {
       invertXCheckbox.addEventListener('change', (e) => {
         game.invertX = e.target.checked;
+      });
+    }
+
+    if (swapXYCheckbox) {
+      swapXYCheckbox.addEventListener('change', (e) => {
+        game.swapXY = e.target.checked;
       });
     }
 
